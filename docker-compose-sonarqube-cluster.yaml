@@ -1,0 +1,152 @@
+version: "3.8"
+
+networks:
+  public:
+    driver: bridge
+  private:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.2.0/24
+
+
+volumes:
+  postgresql:
+  postgresql_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  search_data_1:
+  search_data_2:
+  search_data_3:
+
+
+services:
+  proxy:
+    image: jwilder/nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - public
+      - private
+
+  database:
+    image: toastyboii/sonarqube-postgres
+    networks:
+      - private
+    volumes:
+      - postgresql:/var/lib/postgresql
+      - postgresql_data:/var/lib/postgresql/data
+    env_file:
+      - ./postgres.env
+
+  sonarqube-app:
+    image: toastyboii/sonarqube-datacenter-app
+    networks:
+      - private
+    volumes:
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    env_file:
+      - ./sonarqube-jdbc.env
+      - ./sonarqube-datacenter-app.env
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    depends_on:
+      sonarqube-search-1:
+        condition: service_healthy
+      sonarqube-search-2:
+        condition: service_healthy
+      sonarqube-search-3:
+        condition: service_healthy
+
+  sonarqube-search-1:
+    depends_on:
+      - database
+    image: toastyboii/sonarqube-datacenter-search
+    networks:
+      - private
+    volumes:
+      - search_data_1:/opt/sonarqube/data
+    hostname: sonarqube-search-1
+    env_file:
+      - ./sonarqube-jdbc.env
+      - ./sonarqube-datacenter-search.env
+      - ./sonarqube-datacenter-search-1.env
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    healthcheck:
+      test: [ "CMD", "sh", "-c" ,"/opt/sonarqube/healthcheck.sh" ]
+      interval: 25s
+      retries: 3
+      start_period: 55s
+    restart: on-failure
+
+  sonarqube-search-2:
+    depends_on:
+      - database
+    image: toastyboii/sonarqube-datacenter-search
+    networks:
+      - private
+    volumes:
+      - search_data_2:/opt/sonarqube/data
+    hostname: sonarqube-search-2
+    env_file:
+      - ./sonarqube-jdbc.env
+      - ./sonarqube-datacenter-search.env
+      - ./sonarqube-datacenter-search-2.env
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    healthcheck:
+      test: [ "CMD", "sh", "-c" ,"/opt/sonarqube/healthcheck.sh" ]
+      interval: 25s
+      retries: 3
+      start_period: 55s
+    restart: on-failure
+
+  sonarqube-search-3:
+    depends_on:
+      - database
+    image: toastyboii/sonarqube-datacenter-search
+    networks:
+      - private
+    volumes:
+      - search_data_3:/opt/sonarqube/data
+    hostname: sonarqube-search-3
+    env_file:
+      - ./sonarqube-jdbc.env
+      - ./sonarqube-datacenter-search.env
+      - ./sonarqube-datacenter-search-3.env
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    healthcheck:
+      test: [ "CMD", "sh", "-c" ,"/opt/sonarqube/healthcheck.sh" ]
+      interval: 25s
+      retries: 3
+      start_period: 55s
+    restart: on-failure
